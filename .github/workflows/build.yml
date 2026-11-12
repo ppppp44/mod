@@ -9,8 +9,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Auto-patch 26.3 API renames, Villager AI, and Smart Ore-Seeking Miner AI
         run: |
-          python3 -c '
+          cat << 'EOF' > patch.py
           import pathlib, re
+
           for p in pathlib.Path("src").rglob("*.java"):
               txt = p.read_text()
               txt = txt.replace(".dimension().location()", ".dimension().identifier()")
@@ -18,11 +19,11 @@ jobs:
               txt = re.sub(r"player\.displayClientMessage\((.+?),\s*true\s*\);", r"player.sendSystemMessage(\1);", txt, flags=re.DOTALL)
               txt = txt.replace(
                   "held.is(ItemTags.PICKAXES)",
-                  "(held.is(ItemTags.PICKAXES) || held.getItem().toString().toLowerCase().contains(\"pickaxe\"))"
+                  '(held.is(ItemTags.PICKAXES) || held.getItem().toString().toLowerCase().contains("pickaxe"))'
               )
               txt = txt.replace(
                   "tool.is(ItemTags.PICKAXES)",
-                  "(tool.is(ItemTags.PICKAXES) || tool.getItem().toString().toLowerCase().contains(\"pickaxe\"))"
+                  '(tool.is(ItemTags.PICKAXES) || tool.getItem().toString().toLowerCase().contains("pickaxe"))'
               )
               if p.name == "MobMineBlockGoal.java":
                   txt = txt.replace("HORIZONTAL_RADIUS = 2;", "HORIZONTAL_RADIUS = 4;")
@@ -35,7 +36,7 @@ jobs:
                       "if (pos.getY() < feet.getY()",
                       "if (pos.getY() < feet.getY() - 1 || (pos.getY() < feet.getY() && (!level.getBlockState(pos.below()).getFluidState().isEmpty() || level.getBlockState(pos.below()).isAir()))"
                   )
-                  smart_scoring = """
+                  smart_scoring = '''
                     String blockName = level.getBlockState(candidate).getBlock().toString().toLowerCase();
                     if (blockName.contains("diamond") || blockName.contains("ancient_debris") || blockName.contains("emerald")) {
                         distance -= 2000.0D;
@@ -45,18 +46,18 @@ jobs:
                     if (dy < 0) {
                         distance += 25.0D;
                     }
-                  """
+                  '''
                   txt = txt.replace(
                       "if (distance < bestDistance) {",
                       smart_scoring + "\n                    if (distance < bestDistance) {"
                   )
-                  cave_wander = """
+                  cave_wander = '''
         if (best == null && mob.getNavigation().isDone()) {
             double rx = mob.getX() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
             double rz = mob.getZ() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
             mob.getNavigation().moveTo(rx, mob.getY(), rz, 1.0D);
         }
-        return best;"""
+        return best;'''
                   txt = txt.replace("        return best;", cave_wander)
                   txt = txt.replace(
                       "tool.hurtAndBreak(1, mob, EquipmentSlot.MAINHAND);",
@@ -79,7 +80,7 @@ jobs:
                       ".addGoal(2, new MobMineBlockGoal(mob));",
                       ".addGoal(0, new MobMineBlockGoal(mob));"
                   )
-                  villager_tick = """
+                  villager_tick = '''
                   Map<Villager, MobMineBlockGoal> villagerGoals = new WeakHashMap<>();
                   ServerTickEvents.END_LEVEL_TICK.register(world -> {
                       for (Entity e : world.getAllEntities()) {
@@ -91,13 +92,15 @@ jobs:
                           }
                       }
                   });
-                  """
+                  '''
                   txt = txt.replace(
-                      "MobMiners.LOGGER.info(\"MobMiners event handlers registered\");",
-                      villager_tick + "\n        MobMiners.LOGGER.info(\"MobMiners event handlers registered\");"
+                      'MobMiners.LOGGER.info("MobMiners event handlers registered");',
+                      villager_tick + '\n        MobMiners.LOGGER.info("MobMiners event handlers registered");'
                   )
               p.write_text(txt)
-          '
+          EOF
+          python3 patch.py
+          rm patch.py
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
