@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Auto-patch 26.3 API renames, Villager AI, and Downward Staircase Mining
+      - name: Auto-patch 26.3 API renames, Villager AI, and Smart Ore-Seeking Miner AI
         run: |
           python3 -c '
           import pathlib, re
@@ -25,6 +25,8 @@ jobs:
                   "(tool.is(ItemTags.PICKAXES) || tool.getItem().toString().toLowerCase().contains(\"pickaxe\"))"
               )
               if p.name == "MobMineBlockGoal.java":
+                  txt = txt.replace("HORIZONTAL_RADIUS = 2;", "HORIZONTAL_RADIUS = 4;")
+                  txt = txt.replace("VERTICAL_SCAN = 3;", "VERTICAL_SCAN = 4;")
                   txt = txt.replace(
                       "for (int dy = 0; dy < VERTICAL_SCAN; dy++) {",
                       "for (int dy = -1; dy < VERTICAL_SCAN; dy++) {"
@@ -33,6 +35,29 @@ jobs:
                       "if (pos.getY() < feet.getY()",
                       "if (pos.getY() < feet.getY() - 1 || (pos.getY() < feet.getY() && (!level.getBlockState(pos.below()).getFluidState().isEmpty() || level.getBlockState(pos.below()).isAir()))"
                   )
+                  smart_scoring = """
+                    String blockName = level.getBlockState(candidate).getBlock().toString().toLowerCase();
+                    if (blockName.contains("diamond") || blockName.contains("ancient_debris") || blockName.contains("emerald")) {
+                        distance -= 2000.0D;
+                    } else if (blockName.contains("ore") || blockName.contains("raw_")) {
+                        distance -= 1000.0D;
+                    }
+                    if (dy < 0) {
+                        distance += 25.0D;
+                    }
+                  """
+                  txt = txt.replace(
+                      "if (distance < bestDistance) {",
+                      smart_scoring + "\n                    if (distance < bestDistance) {"
+                  )
+                  cave_wander = """
+        if (best == null && mob.getNavigation().isDone()) {
+            double rx = mob.getX() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
+            double rz = mob.getZ() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
+            mob.getNavigation().moveTo(rx, mob.getY(), rz, 1.0D);
+        }
+        return best;"""
+                  txt = txt.replace("        return best;", cave_wander)
                   txt = txt.replace(
                       "tool.hurtAndBreak(1, mob, EquipmentSlot.MAINHAND);",
                       "// unbreakable worker tool"
