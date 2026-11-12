@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Auto-patch 26.3 API renames
+      - name: Auto-patch 26.3 API renames and interaction fixes
         run: |
           python3 -c '
           import pathlib, re
@@ -16,6 +16,15 @@ jobs:
               txt = txt.replace(".dimension().location()", ".dimension().identifier()")
               txt = txt.replace("mob.moveTo(", "mob.snapTo(")
               txt = re.sub(r"player\.displayClientMessage\((.+?),\s*true\s*\);", r"player.sendSystemMessage(\1);", txt, flags=re.DOTALL)
+              if p.name == "ModEvents.java":
+                  txt = txt.replace(
+                      "if (held.is(ItemTags.PICKAXES)) {",
+                      "if (held.is(ItemTags.PICKAXES) || held.getItem().toString().toLowerCase().contains(\"pickaxe\")) {"
+                  )
+                  txt = txt.replace(
+                      "OverseerWandItem.bind(held, serverLevel, clickedPos);",
+                      "OverseerWandItem.bind(held, serverLevel, clickedPos);\n                player.setItemInHand(InteractionHand.MAIN_HAND, held);"
+                  )
               p.write_text(txt)
           '
       - name: Set up JDK 25
