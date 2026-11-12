@@ -33,10 +33,18 @@ jobs:
                       "if (pos.getY() < feet.getY()",
                       "if (pos.getY() < feet.getY() - 1 || (pos.getY() < feet.getY() && (!level.getBlockState(pos.below()).getFluidState().isEmpty() || level.getBlockState(pos.below()).isAir()))"
                   )
+                  txt = txt.replace(
+                      "tool.hurtAndBreak(1, mob, EquipmentSlot.MAINHAND);",
+                      "// unbreakable worker tool"
+                  )
               if p.name == "ModEvents.java":
                   txt = txt.replace(
                       "OverseerWandItem.bind(held, serverLevel, clickedPos);",
                       "OverseerWandItem.bind(held, serverLevel, clickedPos);\n                player.setItemInHand(InteractionHand.MAIN_HAND, held);"
+                  )
+                  txt = txt.replace(
+                      "mob.setPersistenceRequired();",
+                      "mob.setPersistenceRequired();\n            mob.setCanPickUpLoot(false);"
                   )
                   txt = txt.replace(
                       "import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;",
@@ -48,7 +56,7 @@ jobs:
                   )
                   villager_tick = """
                   Map<Villager, MobMineBlockGoal> villagerGoals = new WeakHashMap<>();
-                  ServerTickEvents.END_WORLD_TICK.register(world -> {
+                  ServerTickEvents.END_LEVEL_TICK.register(world -> {
                       for (Entity e : world.getAllEntities()) {
                           if (e instanceof Villager v && !v.isRemoved()) {
                               MobMineBlockGoal g = villagerGoals.computeIfAbsent(v, MobMineBlockGoal::new);
