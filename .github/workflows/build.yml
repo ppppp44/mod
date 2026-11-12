@@ -36,28 +36,12 @@ jobs:
                       "if (pos.getY() < feet.getY()",
                       "if (pos.getY() < feet.getY() - 1 || (pos.getY() < feet.getY() && (!level.getBlockState(pos.below()).getFluidState().isEmpty() || level.getBlockState(pos.below()).isAir()))"
                   )
-                  smart_scoring = '''
-                    String blockName = level.getBlockState(candidate).getBlock().toString().toLowerCase();
-                    if (blockName.contains("diamond") || blockName.contains("ancient_debris") || blockName.contains("emerald")) {
-                        distance -= 2000.0D;
-                    } else if (blockName.contains("ore") || blockName.contains("raw_")) {
-                        distance -= 1000.0D;
-                    }
-                    if (dy < 0) {
-                        distance += 25.0D;
-                    }
-                  '''
+                  smart_scoring = '                    String bName = level.getBlockState(candidate).getBlock().toString().toLowerCase();\n                    if (bName.contains("diamond") || bName.contains("ancient_debris") || bName.contains("emerald")) { distance -= 2000.0D; }\n                    else if (bName.contains("ore") || bName.contains("raw_")) { distance -= 1000.0D; }\n                    if (dy < 0) { distance += 25.0D; }\n'
                   txt = txt.replace(
-                      "if (distance < bestDistance) {",
-                      smart_scoring + "\n                    if (distance < bestDistance) {"
+                      "                    if (distance < bestDistance) {",
+                      smart_scoring + "                    if (distance < bestDistance) {"
                   )
-                  cave_wander = '''
-        if (best == null && mob.getNavigation().isDone()) {
-            double rx = mob.getX() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
-            double rz = mob.getZ() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;
-            mob.getNavigation().moveTo(rx, mob.getY(), rz, 1.0D);
-        }
-        return best;'''
+                  cave_wander = '        if (best == null && mob.getNavigation().isDone()) {\n            double rx = mob.getX() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;\n            double rz = mob.getZ() + (mob.getRandom().nextDouble() - 0.5D) * 16.0D;\n            mob.getNavigation().moveTo(rx, mob.getY(), rz, 1.0D);\n        }\n        return best;'
                   txt = txt.replace("        return best;", cave_wander)
                   txt = txt.replace(
                       "tool.hurtAndBreak(1, mob, EquipmentSlot.MAINHAND);",
@@ -80,22 +64,10 @@ jobs:
                       ".addGoal(2, new MobMineBlockGoal(mob));",
                       ".addGoal(0, new MobMineBlockGoal(mob));"
                   )
-                  villager_tick = '''
-                  Map<Villager, MobMineBlockGoal> villagerGoals = new WeakHashMap<>();
-                  ServerTickEvents.END_LEVEL_TICK.register(world -> {
-                      for (Entity e : world.getAllEntities()) {
-                          if (e instanceof Villager v && !v.isRemoved()) {
-                              MobMineBlockGoal g = villagerGoals.computeIfAbsent(v, MobMineBlockGoal::new);
-                              if (g.canContinueToUse() || g.canUse()) {
-                                  g.tick();
-                              }
-                          }
-                      }
-                  });
-                  '''
+                  villager_tick = '        Map<Villager, MobMineBlockGoal> vGoals = new WeakHashMap<>();\n        ServerTickEvents.END_LEVEL_TICK.register(w -> {\n            for (Entity e : w.getAllEntities()) {\n                if (e instanceof Villager v && !v.isRemoved()) {\n                    MobMineBlockGoal g = vGoals.computeIfAbsent(v, MobMineBlockGoal::new);\n                    if (g.canContinueToUse() || g.canUse()) { g.tick(); }\n                }\n            }\n        });\n'
                   txt = txt.replace(
-                      'MobMiners.LOGGER.info("MobMiners event handlers registered");',
-                      villager_tick + '\n        MobMiners.LOGGER.info("MobMiners event handlers registered");'
+                      '        MobMiners.LOGGER.info("MobMiners event handlers registered");',
+                      villager_tick + '        MobMiners.LOGGER.info("MobMiners event handlers registered");'
                   )
               p.write_text(txt)
           EOF
