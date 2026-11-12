@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Auto-patch 26.3 API renames and interaction fixes
+      - name: Auto-patch 26.3 API renames, Villager AI, and Downward Staircase Mining
         run: |
           python3 -c '
           import pathlib, re
@@ -16,14 +16,52 @@ jobs:
               txt = txt.replace(".dimension().location()", ".dimension().identifier()")
               txt = txt.replace("mob.moveTo(", "mob.snapTo(")
               txt = re.sub(r"player\.displayClientMessage\((.+?),\s*true\s*\);", r"player.sendSystemMessage(\1);", txt, flags=re.DOTALL)
-              if p.name == "ModEvents.java":
+              txt = txt.replace(
+                  "held.is(ItemTags.PICKAXES)",
+                  "(held.is(ItemTags.PICKAXES) || held.getItem().toString().toLowerCase().contains(\"pickaxe\"))"
+              )
+              txt = txt.replace(
+                  "tool.is(ItemTags.PICKAXES)",
+                  "(tool.is(ItemTags.PICKAXES) || tool.getItem().toString().toLowerCase().contains(\"pickaxe\"))"
+              )
+              if p.name == "MobMineBlockGoal.java":
                   txt = txt.replace(
-                      "if (held.is(ItemTags.PICKAXES)) {",
-                      "if (held.is(ItemTags.PICKAXES) || held.getItem().toString().toLowerCase().contains(\"pickaxe\")) {"
+                      "for (int dy = 0; dy < VERTICAL_SCAN; dy++) {",
+                      "for (int dy = -1; dy < VERTICAL_SCAN; dy++) {"
                   )
+                  txt = txt.replace(
+                      "if (pos.getY() < feet.getY()",
+                      "if (pos.getY() < feet.getY() - 1 || (pos.getY() < feet.getY() && (!level.getBlockState(pos.below()).getFluidState().isEmpty() || level.getBlockState(pos.below()).isAir()))"
+                  )
+              if p.name == "ModEvents.java":
                   txt = txt.replace(
                       "OverseerWandItem.bind(held, serverLevel, clickedPos);",
                       "OverseerWandItem.bind(held, serverLevel, clickedPos);\n                player.setItemInHand(InteractionHand.MAIN_HAND, held);"
+                  )
+                  txt = txt.replace(
+                      "import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;",
+                      "import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;\nimport net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;\nimport java.util.WeakHashMap;\nimport java.util.Map;"
+                  )
+                  txt = txt.replace(
+                      ".addGoal(2, new MobMineBlockGoal(mob));",
+                      ".addGoal(0, new MobMineBlockGoal(mob));"
+                  )
+                  villager_tick = """
+                  Map<Villager, MobMineBlockGoal> villagerGoals = new WeakHashMap<>();
+                  ServerTickEvents.END_WORLD_TICK.register(world -> {
+                      for (Entity e : world.getAllEntities()) {
+                          if (e instanceof Villager v && !v.isRemoved()) {
+                              MobMineBlockGoal g = villagerGoals.computeIfAbsent(v, MobMineBlockGoal::new);
+                              if (g.canContinueToUse() || g.canUse()) {
+                                  g.tick();
+                              }
+                          }
+                      }
+                  });
+                  """
+                  txt = txt.replace(
+                      "MobMiners.LOGGER.info(\"MobMiners event handlers registered\");",
+                      villager_tick + "\n        MobMiners.LOGGER.info(\"MobMiners event handlers registered\");"
                   )
               p.write_text(txt)
           '
